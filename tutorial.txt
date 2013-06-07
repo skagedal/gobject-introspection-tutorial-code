@@ -1,0 +1,228 @@
+= A Hello World multilevel application with GObject Introspection =
+
+This tutorial will show you how to use GObject Introspection to give easy access to your C code from higher level programming languages.  We'll use a trivial "Hello World" example that only depends on GLib and GObject.  You are assumed to know the basics on how developing with GObject works; if not, freshen up with the [[http://library.gnome.org/devel/gobject/unstable/pt02.html|GObject tutorial]]. We'll look at how to use your classes from JavaScript using [[Gjs]] and Python using [[PyGObject]].
+
+== Preparations ==
+
+You need to first install the GObject Introspection package, including files necessary for development.  On a Ubuntu or Debian-based system, `sudo apt-get install libgirepository1.0-dev` should bring in what you need (use python3-gi for Python 3). 
+
+== Step one: A simple GObject class ==
+
+First, we'll create a very simple GObject called `TutGreeter`.  Besides the boilerplate GObject stuff, it has one method: `tut_greeter_greet` that displays a well known friendly greeting on standard output, and one property, `greetee` that holds the name of the entity to greet.
+
+You can follow along as we move forward in the tutorial by checking out a git project:
+
+{{{
+git clone https://git.gitorious.org/gobject-introspection-tutorial/code.git tutorial
+cd tutorial
+git checkout stepone
+}}}
+
+`TutGreeter` is defined in [[https://www.gitorious.org/gobject-introspection-tutorial/code/blobs/stepone/tut-greeter.h|`tut-greeter.h`]] and [[https://www.gitorious.org/gobject-introspection-tutorial/code/blobs/stepone/tut-greeter.c|`tut-greeter.c`]].  Most of this is standard GObject stuff, seen in all GObject C projects.  This is how we initialize the class (in `tut-greeter.c`):
+
+{{{
+static void
+tut_greeter_class_init (TutGreeterClass *klass)
+{
+    GObjectClass *object_class = G_OBJECT_CLASS (klass);
+
+    object_class->set_property = tut_greeter_set_property;
+    object_class->get_property = tut_greeter_get_property;
+    object_class->finalize = tut_greeter_finalize;
+
+    obj_properties[PROP_GREETEE] = 
+	g_param_spec_string ("greetee",
+			     "Greetee",
+			     "The entity to greet.",
+			     "World",
+			     G_PARAM_READWRITE |
+			     G_PARAM_CONSTRUCT);
+
+    g_object_class_install_properties (object_class,
+				       N_PROPERTIES,
+				       obj_properties);
+
+    g_type_class_add_private (object_class, sizeof (TutGreeterPrivate));
+}
+}}}
+
+This installs a property `greetee` with the default value of `World`, that is set on construction. The "greet" method then looks like this:
+
+{{{
+/**
+ * tut_greeter_greet:
+ * @greeter: a #TutGreeter
+ *
+ * Prints a friendly greeting.
+ *
+ * Return value: nothing.
+ */
+
+void
+tut_greeter_greet (TutGreeter *greeter)
+{
+    TutGreeterPrivate *priv;
+    g_return_if_fail (greeter != NULL);
+
+    priv = TUT_GREETER_GET_PRIVATE (greeter);
+    printf ("Hello, %s!\n", priv->greetee);
+
+}
+}}}
+
+As you see, all code intended to be used from the outside is documented with a GtkDoc header.  This is of course good practice in any case, but for what we're about to do &ndash; introspection &ndash; it's a necessity.  GObject Introspection uses these GtkDoc sections with some special annotations to figure out how the function is to be used and to map things like output parameters to an appropriate construct in the bound language.
+
+We also have a simple `main` function in [[https://www.gitorious.org/gobject-introspection-tutorial/code/blobs/stepone/main.c|main.c]]:
+
+{{{
+int main (int argc, char *argv[]) 
+{
+    TutGreeter *greeter;
+
+    greeter = tut_greeter_new ();
+    tut_greeter_greet (greeter);
+
+    return 0;
+}
+}}}
+
+Last, we have a [[https://www.gitorious.org/gobject-introspection-tutorial/code/blobs/stepone/Makefile|Makefile]].  In a real-world project, you'll want to use a more sophisticated build system; the GNU build tool chain with `autoconf`, `automake` and friends is the most commonly used and best supported system.  For the purpose of this tutorial, I find that a simple GNU Makefile makes it easy to follow what's happening.  Just type `make` at the console and you should get a binary called `greeter`.  Run it, and feel greeted.
+
+== Step two: Introspecting the class ==
+Now let's move on to the real topic.
+
+== Step three: Hooking up JavaScript ==
+
+== Step four: Make it a library ==
+
+== About this tutorial ==
+
+Mention FromHereToHere
+
+
+== Introspecting the project ==
+
+Now, we're going to add a dependency on [[http://live.gnome.org/GObjectIntrospection/|GObject Introspection]].  In this step, all we will do is run '''g-ir-scanner''' on our source code to generate an XML representation of our C Tut``Triangle class.
+
+{{{
+git checkout c5332a5c
+}}}
+
+Let's go through the diff this commit introduced.
+
+{{{
+git show
+}}}
+
+In the changes to ''main.c'', we're now using a '''GOption``Group''' to process command line arguments, and we're using ''g_irepository_get_option_group'' to add an option.  The reason this is necessary is because the introspection program '''g-ir-scanner''' actually runs our program to dump data from it.  To see how that works, let's go to the next change, to the ''wscript'' file.
+
+You can see in this first part that we're adding a dependency on the GObject Introspection library.
+
+The next change is telling the build system to scan our ''tut-triangle.c'' and ''tut-triangle.h'' files.  Note that we picked a namespace '''Tut''' and a namespace version '''1.0'''.  In a large program, you may have multiple namespaces, but here we just have one.  The '''--program''' argument gives the path to our built program.  This is necessary in order to get complete information about our GObjects.
+
+Side note: If you're more familiar with Automake, there are some sample rules in [[http://svn.gnome.org/svn/gir-repository/trunk/gir/Makefile.am|gir-repository]], [[http://svn.gnome.org/svn/gobject-introspection/trunk/gir/Makefile.am|gobject-introspection]] (both libraries), and [[http://svn.gnome.org/svn/gnome-shell/trunk/src/Makefile.am|gnome-shell]] (application).
+
+Let's build the project again.  We need to both reconfigure and build, because we changed the ''wscript'' file as well as code.
+
+{{{
+python ./waf configure
+python ./waf build
+}}}
+
+You should now have a '''.gir''' file, ''build/default/Tut-1.0.gir''.  Take a minute to examine the contents of this file.  Note that it has both the public API from the headers, as well as the GObject property ''color''.  These '''.gir''' files are ''always'' automatically generated from the source code - don't try to edit it!  We'll see how we can affect the scanning process later.
+
+There's not much point to running the program again, since .we didn't introduce any runtime differences.  Remember in this commit, we're just generating the '''.gir''' file.
+
+== Switching to JavaScript ==
+
+This next step is a big one.  We've rewritten the presentation logic from ''main.c'' in JavaScript, but kept our custom triangle class in C.  Let's take a look.
+
+{{{
+git checkout 4a8ee2a
+}}}
+
+As before, let's inspect the changes.
+
+{{{
+git show
+}}}
+
+Looking at the change to ''wscript'' first, we're introducing a dependency on Gjs.  The next part uses '''g-ir-compiler''' to compiles the '''.gir''' into a '''.typelib''' file.  The typelib is a compact, efficient representation of the gir.  It will be used at runtime by Gjs to dynamically look up information about our application's C side.
+
+The changes to ''main.c'' are much larger.  In the big picture what we're doing here is setting up the Gjs runtime and pointing it at our JavaScript side code.  The changes here are slightly fragile in that they only work when running directly from the toplevel source directory; getting this whole thing set up so it works correctly when installed and uninstalled is a bit tricky and was not done for this tutorial.
+
+You can see though that we're still initializing Clutter from our C side, as well as running the mainloop.  This would also be the place to initialize any other C libraries you take a dependency on, etc.
+
+A key part of the change here is:
+{{{
+const Main = imports.main; Main.start()
+}}}
+
+There's nothing particularly special about the name "Main"; this just happens to be the name of our first JavaScript file, ''main.js''.
+
+Moving on to ''main.js'', we see the Gjs-specific "import" mechanism.  We're importing the Clutter library (as exposed through GObject Introspection), as well as our application itself - '''Tut'''.  The '''start''' function is being called from the ''main.c'' fragment above.
+
+In this file we can see how Java``Script offers a lot of convenience for creating our '''Tut.Triangle''' class.  GObject properties can all be specified in a big group as a literal hash.
+
+Let's rebuild and run to verify everything works:
+
+{{{
+python ./waf configure
+python ./waf build
+}}}
+
+If you got a build failure here, make sure you have ''gjs-console'' working first (see the [[http://live.gnome.org/Gjs|Gjs]] page).
+
+And now run:
+
+{{{
+./build/default/mainapp
+}}}
+
+The display should be unchanged; but now we're doing most of the setup logic from JavaScript.
+
+== Using Annotations ==
+
+{{{
+git checkout 4bb1bcc
+git show
+}}}
+
+In this commit, we've added a method to our '''Tut``Triangle''' class, '''tut_triangle_get_centroid''' (and a ''u'' variant similar to other Clutter APIs).  See the [[http://en.wikipedia.org/wiki/Centroid|Wikipedia article on Centroid]] for a definition.  What is very nice about GObject Introspection is that normally after adding a method all we need to do is rebuild, and both the '''.gir''' and '''.typelib''' files (and thus our higher level language) will pick up the change immediately.  
+
+To get our new method in the '''.gir''' file, let's build now.
+
+{{{
+python ./waf build
+}}}
+
+(Note we only need to build, not reconfigure, since we didn't change ''wscript'').
+
+Normally, adding methods to the C ''.h'', adding GObject properties in the ''.c'' files, etc. is enough.  However, in some cases, the introspection system needs additional information.  Our new '''tut_triangle_get_centroid''' method is one of these cases.  Unassisted, the introspection system doesn't know whether the ''int *'' parameters we're using are purely return values (or if they're both input and output, or they could be arrays).  The way this is handled is through [[GObjectIntrospection/Annotations|Annotations]].  Note specifically the annotation used here is ''(out)''.  This ensures that our binding knows these parameters are just return values.
+
+Now in our modifications to ''main.js'', we call the new method:
+
+{{{
+let [cx, cy] = actor.get_centroid();
+}}}
+
+Notice how the binding converts multiple return values to an array, which we then "destructure".  We then use this to draw a simple cross targeting the centroid.
+
+== End Tutorial ==
+
+There's quite a bit more to learn about the details of Gjs bindings (or whichever binding you end up choosing), but hopefully this tutorial demystified the big picture somewhat and gave some useful, targeted sample code to work with.
+
+== Scratch ==
+
+libgjs-dev python-gi python3-gi
+
+You can pick from among many different languages and runtimes; see the [[http://live.gnome.org/GObjectIntrospection/Users|GObject Introspection page]].  Most of the concepts in this tutorial should translate fairly easily into another language/runtime.
+We'll assume at this point that you can now do something like the following:
+
+{{{
+$ gjs-console
+gjs> 1+1
+2
+gjs> 
+}}}
+
