@@ -1,2 +1,4 @@
 *.o
 greeter
+*.typelib
+*.gir
