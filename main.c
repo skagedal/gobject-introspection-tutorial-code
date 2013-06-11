@@ -14,11 +14,22 @@
  */
 
 #include <glib.h>
+#include <girepository.h>
 #include "tut-greeter.h"
 
 int main (int argc, char *argv[]) 
 {
     TutGreeter *greeter;
+    GOptionContext *ctx;
+    GError *error = NULL;
+
+    ctx = g_option_context_new (NULL);
+    g_option_context_add_group (ctx, g_irepository_get_option_group ());  
+
+    if (!g_option_context_parse (ctx, &argc, &argv, &error)) {
+	g_print ("greeter: %s\n", error->message);
+	return 1;
+    }
 
     greeter = tut_greeter_new ();
     tut_greeter_greet (greeter);
