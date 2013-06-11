@@ -12,8 +12,8 @@
 # http://creativecommons.org/publicdomain/zero/1.0/
 
 C_INCLUDES=`pkg-config --cflags gobject-introspection-1.0`
-CFLAGS=$(C_INCLUDES) -g 
-LIBS=`pkg-config --libs gobject-introspection-1.0 gmodule-2.0` 
+CFLAGS=$(C_INCLUDES) -g
+LIBS=`pkg-config --libs gobject-introspection-1.0 gmodule-2.0`
 
 OBJECTS=tut-greeter.o main.o
 SOURCES=tut-greeter.c tut-greeter.h main.c
