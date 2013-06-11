@@ -15,12 +15,15 @@
 
 #include <glib.h>
 #include <girepository.h>
+#include <gjs/gjs.h>
 #include "tut-greeter.h"
 
 int main (int argc, char *argv[]) 
 {
     TutGreeter *greeter;
     GOptionContext *ctx;
+    GjsContext *gjs;
+    int status = 0;
     GError *error = NULL;
 
     ctx = g_option_context_new (NULL);
@@ -31,8 +34,13 @@ int main (int argc, char *argv[])
 	return 1;
     }
 
-    greeter = tut_greeter_new ();
-    tut_greeter_greet (greeter);
+    gjs = gjs_context_new ();
+    if (!gjs_context_eval_file (gjs, "main.js", &status, &error)) {
+        g_print ("greeter: couldn't evaluate JavaScript: %s\n",
+                 error->message);
+        g_clear_error (&error);
+    }
+    g_object_unref (gjs);
 
-    return 0;
+    return status;
 }
