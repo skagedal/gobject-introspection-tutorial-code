@@ -11,32 +11,36 @@
 # CC0 Public Domain Dedication:
 # http://creativecommons.org/publicdomain/zero/1.0/
 
-C_INCLUDES=`pkg-config --cflags gobject-introspection-1.0 gjs-1.0`
+CC=gcc
+C_INCLUDES=`pkg-config --cflags gobject-2.0`
 CFLAGS=$(C_INCLUDES) -g
-LIBS=`pkg-config --libs gobject-introspection-1.0 gmodule-2.0 gjs-1.0`
+LIBS=`pkg-config --libs gobject-2.0`
+LIBDIR=/usr/local/lib
 
-OBJECTS=tut-greeter.o main.o
-SOURCES=tut-greeter.c tut-greeter.h main.c
+OBJECTS=tut-greeter.lo
+SOURCES=tut-greeter.c tut-greeter.h 
 
 NAMESPACE=Tut
 NSVERSION=0.1
 GIR_FILE=$(NAMESPACE)-$(NSVERSION).gir
 TYPELIB_FILE=$(NAMESPACE)-$(NSVERSION).typelib
 
-all: greeter $(TYPELIB_FILE)
+all: libtutorial.la $(TYPELIB_FILE)
 
-greeter: $(OBJECTS)	
-	$(CC) -o $@ $(OBJECTS) $(LIBS)
+libtutorial.la: $(OBJECTS)	
+	libtool link $(CC) $(LIBS) -rpath $(LIBDIR) $(OBJECTS) -o $@ 
 
 $(TYPELIB_FILE): $(GIR_FILE)
 	g-ir-compiler $(GIR_FILE) --output=$(TYPELIB_FILE)
 
 $(GIR_FILE): tut-greeter.c tut-greeter.h
-	g-ir-scanner tut-greeter.c tut-greeter.h --program=./greeter $(C_INCLUDES) --include=GObject-2.0 --namespace=$(NAMESPACE) --nsversion=$(NSVERSION) --output=$(GIR_FILE)
+	libtool exec g-ir-scanner $^ --library=tutorial $(C_INCLUDES) --include=GObject-2.0 --namespace=$(NAMESPACE) --nsversion=$(NSVERSION) --output=$@
 
-tut-greeter.o: tut-greeter.c tut-greeter.h
-main.o: main.c tut-greeter.h
+tut-greeter.lo: tut-greeter.c tut-greeter.h
+	libtool compile $(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm *.o greeter $(TYPELIB_FILE) $(GIR_FILE)
+	-rm *.lo libtutorial.la $(TYPELIB_FILE) $(GIR_FILE)
+	-rm -rf .libs
+
 
