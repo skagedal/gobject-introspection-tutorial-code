@@ -108,6 +108,11 @@ tut_greeter_class_init (TutGreeterClass *klass)
     object_class->get_property = tut_greeter_get_property;
     object_class->finalize = tut_greeter_finalize;
 
+    /**
+     * TutGreeter:greetee:
+     *
+     * The entity to greet.
+     */
     obj_properties[PROP_GREETEE] = 
 	g_param_spec_string ("greetee",
 			     "Greetee",
